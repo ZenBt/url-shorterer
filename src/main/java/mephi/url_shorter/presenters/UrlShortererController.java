@@ -6,13 +6,16 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import mephi.url_shorter.domain.interactors.PermissionDeniedException;
 import mephi.url_shorter.domain.interactors.UrlShortererInteractor;
 
 @RestController
@@ -27,12 +30,24 @@ public class UrlShortererController {
     }
 
     @PostMapping("/shorten")
-    public ShortenedUrlResponse shortenUrl(@RequestParam String url,
-            @RequestParam(required = false) UUID userId) {
+    public ResponseEntity<?> shortenUrl(@RequestParam String url,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) Integer maxRedirects) {
+        ShortenedUrlResponse shortUrlResponse;
         if (userId != null) {
-            return interactor.getShortUrl(url, userId);
+            shortUrlResponse = interactor.getShortUrl(url, userId);
+        } else {
+            shortUrlResponse = interactor.getShortUrl(url);
         }
-        return interactor.getShortUrl(url);
+        if (maxRedirects != null) {
+            try {
+                interactor.updateShortUrl(shortUrlResponse.getShortenedUrl(), shortUrlResponse.getUserId(),
+                        maxRedirects);
+            } catch (PermissionDeniedException e) {
+                return ResponseEntity.status(403).body(e.getMessage());
+            }
+        }
+        return ResponseEntity.ok(shortUrlResponse);
     }
 
     @GetMapping("/{shortUrl}")
@@ -49,5 +64,26 @@ public class UrlShortererController {
         HttpHeaders headers = new HttpHeaders();
         headers.add("Location", initialUrl.get());
         return ResponseEntity.status(302).headers(headers).build();
+    }
+
+    @DeleteMapping("/{shortUrl}/{userId}")
+    public ResponseEntity<?> deleteUrl(@PathVariable String shortUrl, @PathVariable UUID userId) {
+        try {
+            interactor.deleteShortUrl(shortUrl, userId);
+        } catch (PermissionDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{shortUrl}/{userId}")
+    public ResponseEntity<?> updateMaxRedirects(@PathVariable String shortUrl, @PathVariable UUID userId,
+            @RequestParam int maxRedirects) {
+        try {
+            interactor.updateShortUrl(shortUrl, userId, maxRedirects);
+        } catch (PermissionDeniedException e) {
+            return ResponseEntity.status(403).body(e.getMessage());
+        }
+        return ResponseEntity.noContent().build();
     }
 }

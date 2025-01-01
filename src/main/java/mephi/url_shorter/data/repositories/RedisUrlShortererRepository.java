@@ -20,6 +20,8 @@ public class RedisUrlShortererRepository extends UrlShortererRepository {
 
     private static final String SHORT_URL_KEY = "short-url:";
     private static final String REDIRECT_COUNTER_KEY = "redirect-counter:";
+    private static final String MAX_REDIRECTS_KEY = "max-redirects:";
+
     private static final int TTL_IN_DAYS = 10;
 
     @Override
@@ -61,5 +63,20 @@ public class RedisUrlShortererRepository extends UrlShortererRepository {
     public void setRedirectCount(String shortUrl, int counter) {
         Duration ttl = Duration.ofDays(TTL_IN_DAYS);
         redisTemplate.opsForValue().set(REDIRECT_COUNTER_KEY + shortUrl, String.valueOf(counter), ttl);
+    }
+
+    @Override
+    public int getMaxRedirects(String shortUrl) {
+        String count = redisTemplate.opsForValue().get(MAX_REDIRECTS_KEY + shortUrl);
+        if (count != null) {
+            return Integer.parseInt(count);
+        }
+        return 0;
+    }
+
+    @Override
+    public void setMaxRedirects(String shortUrl, int maxRedirects) {
+        Duration ttl = Duration.ofDays(TTL_IN_DAYS);
+        redisTemplate.opsForValue().set(MAX_REDIRECTS_KEY + shortUrl, String.valueOf(maxRedirects), ttl);
     }
 }

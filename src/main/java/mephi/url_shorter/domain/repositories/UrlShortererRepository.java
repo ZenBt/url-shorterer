@@ -14,4 +14,8 @@ public abstract class UrlShortererRepository {
     public abstract void incrementRedirectCount(String shortUrl);
 
     public abstract void setRedirectCount(String shortUrl, int counter);
+
+    public abstract int getMaxRedirects(String shortUrl);
+    
+    public abstract void setMaxRedirects(String shortUrl, int maxRedirects);
 }

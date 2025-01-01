@@ -8,9 +8,14 @@ import mephi.url_shorter.domain.repositories.UrlShortererRepository;
 
 @Configuration
 public class UrlShorterConfig {
+    private final UrlShortererConfigProperties properties;
+
+    public UrlShorterConfig(UrlShortererConfigProperties properties) {
+        this.properties = properties;
+    }
 
     @Bean
     public UrlShortererInteractor urlShortererInteractor(UrlShortererRepository repository) {
-        return new UrlShortererInteractor(repository); // Внедряем репозиторий в интерактор
+        return new UrlShortererInteractor(repository, properties.getMaxRedirects());
     }
 }

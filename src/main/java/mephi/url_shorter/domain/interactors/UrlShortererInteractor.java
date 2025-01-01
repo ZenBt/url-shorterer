@@ -9,10 +9,11 @@ import mephi.url_shorter.presenters.ShortenedUrlResponse;
 public class UrlShortererInteractor {
     private final UrlShortererRepository repo;
 
-    private static final int MAX_REDIRECTS = 2;
+    private final int MAX_REDIRECTS;
 
-    public UrlShortererInteractor(UrlShortererRepository repository) {
+    public UrlShortererInteractor(UrlShortererRepository repository, int maxRedirects) {
         this.repo = repository;
+        this.MAX_REDIRECTS = maxRedirects;
     }
 
     public ShortenedUrlResponse getShortUrl(String url, UUID userId) {
@@ -41,7 +42,11 @@ public class UrlShortererInteractor {
             repo.setRedirectCount(shortUrl, 1);
             return Optional.of(url);
         }
-        if (counter > MAX_REDIRECTS) {
+        int maxRedirects = repo.getMaxRedirects(shortUrl);
+        if (maxRedirects < MAX_REDIRECTS) {
+            maxRedirects = MAX_REDIRECTS;
+        }
+        if (counter >= maxRedirects) {
             repo.deleteShortUrl(shortUrl);
             repo.deleteRedirectCount(shortUrl);
             return Optional.ofNullable(null);
@@ -49,5 +54,29 @@ public class UrlShortererInteractor {
         repo.incrementRedirectCount(shortUrl);
         return Optional.of(url);
 
+    }
+
+    public void deleteShortUrl(String shortUrl, UUID userId) throws PermissionDeniedException {
+        String url = repo.getInitialUrl(shortUrl);
+        if (url == null) {
+            return;
+        }
+        if (!getShortUrl(url, userId).getShortenedUrl().equals(shortUrl)) {
+            throw new PermissionDeniedException("Невозможно удалить чужую ссылку");
+        }
+        repo.deleteShortUrl(shortUrl);
+        repo.deleteRedirectCount(shortUrl);
+    }
+
+    public void updateShortUrl(String shortUrl, UUID userId, int maxRedirects) throws PermissionDeniedException {
+        String url = repo.getInitialUrl(shortUrl);
+        if (url == null) {
+            return;
+        }
+        if (!getShortUrl(url, userId).getShortenedUrl().equals(shortUrl)) {
+            throw new PermissionDeniedException(
+                    "Невозможно изменить максимальное колиечство переходов по чужой ссылке");
+        }
+        repo.setMaxRedirects(shortUrl, maxRedirects);
     }
 }
